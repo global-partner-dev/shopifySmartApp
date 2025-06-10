@@ -1,0 +1,3 @@
+filter ($session: Session) on ShopifyReverseDelivery [
+  where shopId == $session.shopId
+]

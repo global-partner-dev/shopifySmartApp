@@ -1,0 +1,3 @@
+filter ($session: Session) on ShopifyFulfillment [
+  where shopId == $session.shopId
+]

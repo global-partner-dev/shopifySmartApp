@@ -1,0 +1,3 @@
+filter ($session: Session) on ShopifyReverseFulfillmentOrderDisposition [
+  where shopId == $session.shopId
+]

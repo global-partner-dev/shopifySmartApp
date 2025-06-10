@@ -1,0 +1,3 @@
+filter ($session: Session) on ShopifyPriceList [
+  where shopId == $session.shopId
+]

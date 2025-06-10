@@ -1,0 +1,3 @@
+filter ($session: Session) on ShopifyQuantityPriceBreak [
+  where shopId == $session.shopId
+]

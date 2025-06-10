@@ -1,0 +1,17 @@
+.mainButtonGroup {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    height: 100%;
+}
+.dashboardButtonGroup{
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+}
+.pagination{
+    position: fixed;
+    bottom: 0px;
+    z-index: 10 !important;
+}
