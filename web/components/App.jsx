@@ -25,6 +25,7 @@ import Top10Products from "../routes/dashboard/top10products";
 import BackorderAndFulfillment from "../routes/dashboard/backorderFulfillment";
 import TotalAnalysis from "../routes/dashboard/totalanalysis";
 import ProductDetail from "../routes/dashboard/productDetail";
+import Low10Products from "../routes/dashboard/low10products";
 
 function Error404() {
   const navigate = useNavigate();
@@ -49,6 +50,7 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/chatbot" element={<ChatbotPage />} />
         <Route path="/dashboard/top10products" element={<Top10Products />} />
+        <Route path="/dashboard/low10products" element={<Low10Products />} />
         <Route path="/dashboard/backorderandfulfillment" element={<BackorderAndFulfillment />} />
         <Route path="/dashboard/totalanalysis" element={<TotalAnalysis />} />
         <Route path="/dashboard/product/:id" element={<ProductDetail />} />
