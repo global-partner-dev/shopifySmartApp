@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Page,
   Layout,
@@ -25,7 +25,7 @@ import { Frame, Modal, TextContainer } from '@shopify/polaris';
 import { useCallback } from 'react';
 import { ChartLineIcon } from '@shopify/polaris-icons';
 import { DeliveryIcon } from '@shopify/polaris-icons';
-import { PlusCircleIcon, CheckSmallIcon, OutdentIcon,ChartVerticalFilledIcon} from '@shopify/polaris-icons';
+import { PlusCircleIcon, CheckSmallIcon, OutdentIcon, ChartVerticalFilledIcon } from '@shopify/polaris-icons';
 import "../../styles/dashboard.css"
 import CustomAttributesEditor from "../../components/customAttributesEditor";
 import { useFindMany } from "@gadgetinc/react";
@@ -38,6 +38,7 @@ export default function TotalAnalysis() {
   const [selectedStock, setSelectedStock] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [sortBy, setSortBy] = useState('');
+  const [searchText, setSearchText] = useState("");
 
   const handleCategoryChange = (value) => setSelectedCategory(value);
   const handleStockChange = (value) => setSelectedStock(value);
@@ -85,18 +86,18 @@ export default function TotalAnalysis() {
   // Transform the data to variant-level records with sales calculations
   const productData = React.useMemo(() => {
     if (!data) return [];
-    
+
     const variantData = [];
-    
+
     data.forEach(product => {
       if (product.variants?.edges) {
         product.variants.edges.forEach(variantEdge => {
           const variant = variantEdge.node;
-          
+
           // Calculate sales metrics
           let unitsSold = 0;
           let revenue = 0;
-          
+
           if (variant.orderLineItems?.edges) {
             variant.orderLineItems.edges.forEach(lineItemEdge => {
               const lineItem = lineItemEdge.node;
@@ -104,12 +105,12 @@ export default function TotalAnalysis() {
               revenue += (lineItem.quantity || 0) * parseFloat(lineItem.price || 0);
             });
           }
-          
+
           // Format size/options
           const options = [variant.option1, variant.option2, variant.option3]
             .filter(Boolean)
             .join(' / ');
-          
+
           variantData.push({
             id: variant.id,
             productName: product.title || "",
@@ -125,7 +126,7 @@ export default function TotalAnalysis() {
         });
       }
     });
-    
+
     return variantData;
   }, [data]);
 
@@ -168,8 +169,37 @@ export default function TotalAnalysis() {
     sortedProductData = productData;
   }
 
+  // Filtered and sorted data for display
+  const filteredProductData = useMemo(() => {
+    let filtered = sortedProductData;
+    // Apply search filter
+    if (searchText) {
+      const lower = searchText.toLowerCase();
+      filtered = filtered.filter(row =>
+        Object.values(row).some(val =>
+          String(val).toLowerCase().includes(lower)
+        )
+      );
+    }
+    // Apply Product Category filter
+    if (selectedCategory) {
+      filtered = filtered.filter(row => {
+        const inventory = parseFloat(row.inventory) || 0;
+        const unitsSold = parseFloat(row.unitsSold) || 0;
+        // Avoid division by zero
+        if (inventory === 0) return false;
+        const ratio = unitsSold / (inventory + unitsSold);
+        if (selectedCategory === 'bestseller') return ratio >= 0.8;
+        if (selectedCategory === 'medium') return ratio >= 0.5 && ratio < 0.8;
+        if (selectedCategory === 'low') return ratio < 0.5;
+        return true;
+      });
+    }
+    return filtered;
+  }, [sortedProductData, searchText, selectedCategory]);
+
   // Slice products for current page
-  const pagedProducts = sortedProductData.slice(
+  const pagedProducts = filteredProductData.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -190,19 +220,19 @@ export default function TotalAnalysis() {
       title="Manual Panel"
     >
       <Layout>
-          <Layout.Section>
-            <Banner
-              title="Connection Successful"
-              tone="success"
-              icon={CheckSmallIcon}
-            >
-              <ButtonGroup>
-                <Button icon={OutdentIcon} url="/dashboard">Dashboard</Button>
-                <Button icon={ChartVerticalFilledIcon} >ExportCSV</Button>
-              </ButtonGroup>
-            </Banner>
-          </Layout.Section>
-        </Layout>
+        <Layout.Section>
+          <Banner
+            title="Connection Successful"
+            tone="success"
+            icon={CheckSmallIcon}
+          >
+            <ButtonGroup>
+              <Button icon={OutdentIcon} url="/dashboard">Dashboard</Button>
+              <Button icon={ChartVerticalFilledIcon} >ExportCSV</Button>
+            </ButtonGroup>
+          </Banner>
+        </Layout.Section>
+      </Layout>
       <Divider />
       {/* Filter section */}
       <Layout>
@@ -210,6 +240,15 @@ export default function TotalAnalysis() {
           <LegacyCard title="Filters" sectioned>
             <BlockStack gap="4">
               <InlineStack gap="4" align="start">
+                <div style={{ minWidth: '200px', marginRight: "20px" }}>
+                  <TextField
+                    label="Search"
+                    value={searchText}
+                    onChange={setSearchText}
+                    autoComplete="off"
+                    placeholder="Search all fields..."
+                  />
+                </div>
                 <div style={{ minWidth: '200px', marginRight: "20px" }}>
                   <Select
                     label="Product Category"
@@ -236,7 +275,7 @@ export default function TotalAnalysis() {
                     onChange={handleStockChange}
                   />
                 </div>
-                <div style={{ minWidth: '200px', marginRight: "20px" }}>
+                {/* <div style={{ minWidth: '200px', marginRight: "20px" }}>
                   <Select
                     label="Product Type"
                     options={[
@@ -247,7 +286,7 @@ export default function TotalAnalysis() {
                     value={selectedType}
                     onChange={handleTypeChange}
                   />
-                </div>
+                </div> */}
                 <div style={{ minWidth: '200px', marginRight: "20px" }}>
                   <Select
                     label="Sort by"
@@ -363,7 +402,7 @@ export default function TotalAnalysis() {
                   ))}
                 </IndexTable>
               </LegacyCard>
-              <div style={{margin: "50px"}}>
+              <div style={{ margin: "50px" }}>
               </div>
               {totalPages > 1 && (
                 <div style={{
@@ -378,21 +417,21 @@ export default function TotalAnalysis() {
                   justifyContent: 'center',
                   padding: 12,
                 }}>
-                    <Button
-                      onClick={() => setCurrentPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    >
-                      Previous
-                    </Button>
-                    <span style={{ alignSelf: 'center', margin: '0 12px' }}>
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <Button
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                    >
-                      Next
-                    </Button>
+                  <Button
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span style={{ alignSelf: 'center', margin: '0 12px' }}>
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
                 </div>
               )}
             </>
@@ -416,7 +455,7 @@ export default function TotalAnalysis() {
           ]}
         >
           <Modal.Section>
-            <CustomAttributesEditor/>
+            <CustomAttributesEditor />
           </Modal.Section>
         </Modal>
       )}

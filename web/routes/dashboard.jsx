@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -26,6 +26,8 @@ import { ChartLineIcon } from '@shopify/polaris-icons';
 import { DeliveryIcon, EditIcon } from '@shopify/polaris-icons';
 import { ChartHistogramFirstIcon } from '@shopify/polaris-icons';
 import "../styles/dashboard.css"
+import { useFindMany } from "@gadgetinc/react";
+import { api } from "../api";
 
 import DailySalesChart from "../components/DailySalesChart";
 import HourlySalesChart from "../components/HourlySalesChart";
@@ -34,17 +36,75 @@ import CustomActiveShapePieChart from "../components/CustomActiveShapePieChart";
 
 export default function DashboardPage() {
 
-
   const [active, setActive] = useState(false);  // this is active value of Modal window
 
   const [analysisOption, setAnalysisOption] = useState(); //this is check list of analysis & export as CSV file
   const handleChange = useCallback(() => setActive(!active), [active]);
 
+  // Fetch all products with variants and order line items
+  const [{ data: products, fetching, error }] = useFindMany(api.shopifyProduct, {
+    first: 250,
+    filter: { status: { equals: "active" } },
+    select: {
+      id: true,
+      variants: {
+        edges: {
+          node: {
+            orderLineItems: {
+              edges: {
+                node: {
+                  quantity: true,
+                  price: true,
+                  createdAt: true,
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
   const [totalProducts, setTotalProducts] = useState(0);
   const [dailySales, setDailySales] = useState(0);
   const [weeklySales, setWeeklySales] = useState(0);
-  const [monthlySales, setMonthlySales] = useState(0)
+  const [monthlySales, setMonthlySales] = useState(0);
 
+  useEffect(() => {
+    if (!products) return;
+
+    setTotalProducts(products.length);
+
+    let daily = 0, weekly = 0, monthly = 0;
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    products.forEach(product => {
+      if (product.variants?.edges) {
+        product.variants.edges.forEach(variantEdge => {
+          const variant = variantEdge.node;
+          if (variant.orderLineItems?.edges) {
+            variant.orderLineItems.edges.forEach(lineItemEdge => {
+              const lineItem = lineItemEdge.node;
+              const createdAt = new Date(lineItem.createdAt);
+              const revenue = (lineItem.quantity || 0) * parseFloat(lineItem.price || 0);
+
+              if (createdAt >= startOfDay) daily += revenue;
+              if (createdAt >= startOfWeek) weekly += revenue;
+              if (createdAt >= startOfMonth) monthly += revenue;
+            });
+          }
+        });
+      }
+    });
+
+    setDailySales(daily);
+    setWeeklySales(weekly);
+    setMonthlySales(monthly);
+  }, [products]);
 
   return (
     <Page
@@ -53,7 +113,7 @@ export default function DashboardPage() {
     >
       <Layout>
         <Layout.Section variant="oneThird">
-          <LegacyCard title="Total Products" sectioned>
+          <LegacyCard title="All Product Types On Sale" sectioned>
             <Text variant="heading2xl" as="h3">
               {totalProducts}
             </Text>
@@ -62,21 +122,21 @@ export default function DashboardPage() {
         <Layout.Section variant="oneThird">
           <LegacyCard title="Daily Sales" sectioned>
             <Text variant="heading2xl" as="h3">
-              ${dailySales}
+              ${dailySales.toFixed(2)}
             </Text>
           </LegacyCard>
         </Layout.Section>
         <Layout.Section variant="oneThird">
           <LegacyCard title="Weekly Sales" sectioned>
             <Text variant="heading2xl" as="h3">
-              ${weeklySales}
+              ${weeklySales.toFixed(2)}
             </Text>
           </LegacyCard>
         </Layout.Section>
         <Layout.Section variant="oneThird">
           <LegacyCard title="Monthly Sales" sectioned>
             <Text variant="heading2xl" as="h3">
-              ${monthlySales}
+              ${monthlySales.toFixed(2)}
             </Text>
           </LegacyCard>
         </Layout.Section>
@@ -86,7 +146,10 @@ export default function DashboardPage() {
               <Button size="large" variant="primary" tone="success" icon={EditIcon} url="/dashboard/totalanalysis" fullWidth> Manual Panel</Button>
               <Button size="large" variant="primary" tone="critical" icon={ChartLineIcon} onClick={handleChange} fullWidth> Analysis & Export</Button>
             </div>
-            <Button size="large" variant="secondary" url="/dashboard/top10products" icon={ChartHistogramFirstIcon} fullWidth> Top 10 Products by Sales</Button>
+            <div className="dashboardButtonGroup">
+              <Button size="large" variant="secondary" tone="success" url="/dashboard/top10products" icon={ChartHistogramFirstIcon} fullWidth> Top 10 Products</Button>
+              <Button size="large" variant="secondary" tone="critical" url="/dashboard/low10products" icon={ChartHistogramFirstIcon} fullWidth> Low 10 Products</Button>
+            </div>
             <Button size="large" variant="primary" url="/dashboard/backorderandfulfillment" icon={DeliveryIcon} fullWidth> BackOrder & Fulfillment</Button>
           </div>
         </Layout.Section>
